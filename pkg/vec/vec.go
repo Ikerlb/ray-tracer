@@ -2,6 +2,7 @@ package vec
 
 import (
     "math"
+    "fmt"
 )
 
 type Vector struct {
@@ -32,11 +33,20 @@ func Add(vs ...Vector) Vector {
 }
 
 func Minus(vs ...Vector) Vector {
-    res := Vector{0, 0, 0}
+    if len(vs) == 0 {
+        return Vector{0, 0, 0}
+    } else {
+        res := vs[0]
+        for i := 1; i < len(vs); i += 1 {
+           res = minus(res, vs[i])
+        }
+        return res
+    }
+    /*res := Vector{0, 0, 0}
     for _, v := range vs {
         res = minus(res, v)
     }
-    return res
+    return res */
 }
 
 func Dot(v, u Vector) float64 {
@@ -82,6 +92,12 @@ func (v * Vector) Length() float64{
     return math.Sqrt(v.LengthSquared())
 }
 
+func (v *Vector) ToColorString() string {
+    ir := int(255.999 * v.X)
+    ig := int(255.999 * v.Y)
+    ib := int(255.999 * v.Z)
+    return fmt.Sprintf("%d %d %d\n", ir, ig, ib)
+}
 
 /*func (v *Vector) dot(u Vector) float64 {
     return (v.x * ux) + (v.y * u.y) + (v.z * u.z)

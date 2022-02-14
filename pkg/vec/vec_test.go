@@ -9,10 +9,10 @@ import (
 )
 
 func randInRange(lo, hi float64) float64 {
-    return lo + rand.Float64() * (hi - lo)        
+    return lo + rand.Float64() * (hi - lo)
 }
 
-func AssertVecVecToVec(t *testing.T, vo func(Vector, Vector) Vector, f func(float64, float64) float64, iterations int) {
+func AssertVariadicVecToVec(t *testing.T, vo func(...Vector) Vector, f func(float64, float64) float64, iterations int) {
     var x1, x2, y1, y2, z1, z2 float64
     var v1, v2, v3 Vector
     for i:=0; i < iterations; i += 1 {
@@ -29,17 +29,52 @@ func AssertVecVecToVec(t *testing.T, vo func(Vector, Vector) Vector, f func(floa
 
         v3 = vo(v1, v2)
         if v3.X != f(v1.X, v2.X) {
-            t.Log(fmt.Sprintf("%f != f(%f, %f)", v3.X, v1.X, v2.X))     
+            t.Log(fmt.Sprintf("X => %f != (f(%f, %f) = %f)", v3.X, v1.X, v2.X, f(v1.X, v2.X)))
             t.Fail()
         }
 
         if v3.Y != f(v1.Y, v2.Y) {
-            t.Log(fmt.Sprintf("%f != f(%f, %f)", v3.Y, v1.Y, v2.Y))
+            t.Log(fmt.Sprintf("Y => %f != (f(%f, %f) = %f)", v3.Y, v1.Y, v2.Y, f(v1.Y, v2.Y)))
             t.Fail()
         }
 
         if v3.Z != f(v1.Z, v2.Z) {
-            t.Log(fmt.Sprintf("%f != f(%f, %f)", v3.Z, v1.Z, v2.Z))
+            t.Log(fmt.Sprintf("Z => %f != (f(%f, %f) = % f)", v3.Z, v1.Z, v2.Z, f(v1.Z, v2.Z)))
+            t.Fail()
+        }
+
+    }
+
+}
+
+func AssertVecVecToVec(t *testing.T, vo func(v1, v2 Vector) Vector, f func(float64, float64) float64, iterations int) {
+    var x1, x2, y1, y2, z1, z2 float64
+    var v1, v2, v3 Vector
+    for i:=0; i < iterations; i += 1 {
+        x1 = randInRange(-1000, 1000)
+        y1 = randInRange(-1000, 1000) 
+        z1 = randInRange(-1000, 1000) 
+
+        x2 = randInRange(-1000, 1000)
+        y2 = randInRange(-1000, 1000) 
+        z2 = randInRange(-1000, 1000) 
+
+        v1 = Vector{x1, y1, z1}
+        v2 = Vector{x2, y2, z2}
+
+        v3 = vo(v1, v2)
+        if v3.X != f(v1.X, v2.X) {
+            t.Log(fmt.Sprintf("X => %f != (f(%f, %f) = %f)", v3.X, v1.X, v2.X, f(v1.X, v2.X)))
+            t.Fail()
+        }
+
+        if v3.Y != f(v1.Y, v2.Y) {
+            t.Log(fmt.Sprintf("Y => %f != (f(%f, %f) = %f)", v3.Y, v1.Y, v2.Y, f(v1.Y, v2.Y)))
+            t.Fail()
+        }
+
+        if v3.Z != f(v1.Z, v2.Z) {
+            t.Log(fmt.Sprintf("Z => %f != (f(%f, %f) = %f)", v3.Z, v1.Z, v2.Z, f(v1.Z, v2.Z)))
             t.Fail()
         }
 
@@ -51,13 +86,13 @@ func AssertVecVecToVec(t *testing.T, vo func(Vector, Vector) Vector, f func(floa
 func TestAdd(t *testing.T) {
     rand.Seed(time.Now().UnixNano()) 
     f := func(x, y float64) float64 { return  x + y} 
-    AssertVecVecToVec(t, Add, f, 1000) 
+    AssertVariadicVecToVec(t, Add, f, 1000) 
 }
 
 func TestMinus(t *testing.T) {
     rand.Seed(time.Now().UnixNano()) 
     f := func(x, y float64) float64 { return  x - y} 
-    AssertVecVecToVec(t, Minus, f, 1000) 
+    AssertVariadicVecToVec(t, Minus, f, 1000) 
 }
 
 func TestProd(t *testing.T) {
