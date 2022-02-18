@@ -1,4 +1,4 @@
-package ra
+package ray
 
 import (
     vec "github.com/ikerlb/ray-tracer/pkg/vec"

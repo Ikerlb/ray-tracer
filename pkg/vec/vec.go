@@ -3,6 +3,9 @@ package vec
 import (
     "math"
     "fmt"
+    "math/rand"
+
+    util "github.com/ikerlb/ray-tracer/pkg/util"
 )
 
 type Vector struct {
@@ -88,19 +91,53 @@ func (v *Vector) LengthSquared() float64{
     return (v.X * v.X) + (v.Y * v.Y) + (v.Z * v.Z)
 }
 
-func (v * Vector) Length() float64{
+func (v *Vector) Length() float64{
     return math.Sqrt(v.LengthSquared())
 }
 
-func (v *Vector) ToColorString() string {
-    ir := int(255.999 * v.X)
-    ig := int(255.999 * v.Y)
-    ib := int(255.999 * v.Z)
-    return fmt.Sprintf("%d %d %d\n", ir, ig, ib)
+func (v Vector) ToColorString(numOfSamples int) string {
+
+    scale := 1.0 / float64(numOfSamples)
+
+    r, g, b := v.unpack()
+    r = math.Sqrt(r * scale)
+    g = math.Sqrt(g * scale)
+    b = math.Sqrt(b * scale)
+
+    rs := int(256 * util.Clamp(r, 0.0, 0.999))
+    gs := int(256 * util.Clamp(g, 0.0, 0.999))
+    bs := int(256 * util.Clamp(b, 0.0, 0.999))
+
+    return fmt.Sprintf("%d %d %d\n", rs, gs, bs)
 }
 
-/*func (v *Vector) dot(u Vector) float64 {
-    return (v.x * ux) + (v.y * u.y) + (v.z * u.z)
+func (v *Vector) unpack() (float64, float64, float64) {
+    return v.X, v.Y, v.Z
+}
+
+func Random(r *rand.Rand, mn, mx float64) Vector {
+    x := util.RandomRange(r, mn, mx)
+    y := util.RandomRange(r, mn, mx)
+    z := util.RandomRange(r, mn, mx)
+    return Vector{x, y, z}
+}
+
+func RandomInUnitSphere(r *rand.Rand) Vector {
+    v := Random(r, 0.0, 1.0)
+    for v.LengthSquared() > 1 {
+        v = Random(r, 0.0, 1.0)
+    }
+    return v
+}
+
+func RandomUnitVector(r *rand.Rand) Vector {
+    return Unit(RandomInUnitSphere(r))
+}
+
+/*func (v *Vector) ToColorString() string {
+    ri := int(255 * v.X)
+    gi := int(255 * v.Y)
+    bi := int(255 * v.Z)
+
+    return fmt.Sprintf("%d %d %d\n", ri, gi, bi)
 }*/
-
-

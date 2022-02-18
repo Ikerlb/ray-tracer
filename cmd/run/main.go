@@ -3,22 +3,36 @@ package main
 import (
     "fmt"
     "math"
+    "math/rand"
+    "time"
+    "os"
 
     ray "github.com/ikerlb/ray-tracer/pkg/ray"
     vec "github.com/ikerlb/ray-tracer/pkg/vec"
+    sphere "github.com/ikerlb/ray-tracer/pkg/sphere"
+    hittable "github.com/ikerlb/ray-tracer/pkg/hittable"
+    world "github.com/ikerlb/ray-tracer/pkg/world"
+    cam "github.com/ikerlb/ray-tracer/pkg/camera"
 )
 
-func hitSphere(center vec.Vector, radius float64, r ray.Ray) float64 {
-    oc := vec.Minus(r.Origin, center)
-    a  := r.Dir.LengthSquared()
-    halfB  := vec.Dot(oc, r.Dir)
-    c  :=  oc.LengthSquared() - (radius * radius)
-    d  := halfB * halfB - (a * c)
-    if d < 0.0 {
-        return -1.0
-    } else {
-        return (- halfB - math.Sqrt(d)) / a
+func rayColor(rng *rand.Rand, r *ray.Ray, h hittable.Hittable, depth int) vec.Vector {
+    if depth <= 0 {
+        return vec.Vector{0, 0, 0}
     }
+
+    doesHit, hRecordP := h.Hit(r, 0.001, math.Inf(1))
+    if doesHit {
+        rInUnit := vec.RandomUnitVector(rng)
+        target := vec.Add(hRecordP.Point, hRecordP.Normal, rInUnit)
+        nRay := ray.Ray{hRecordP.Point, vec.Minus(target, hRecordP.Point)}
+        return vec.Scale(rayColor(rng, &nRay, h, depth - 1), 0.5)
+    }
+
+    unit := vec.Unit(r.Dir)
+    t  := 0.5 * (unit.Y + 1.0)
+    c1 := vec.Scale(vec.Vector{1, 1, 1}, 1.0 - t)
+    c2 := vec.Scale(vec.Vector{0.5, 0.7, 1.0}, t)
+    return vec.Add(c1, c2)
 }
 
 func main() {
@@ -27,51 +41,40 @@ func main() {
     aspectRatio := 16.0 / 9.0
     h := int64(float64(w) / aspectRatio)
 
+
     // Camera data
-    viewportHeight := 2.0
-    viewportWidth := aspectRatio * viewportHeight
-    focalLength := 1.0
+    camera := cam.Init(aspectRatio, 2.0, 1.0)
 
-    origin := vec.Vector{0, 0, 0}
-    horizontal := vec.Vector{viewportWidth, 0, 0}
-    vertical := vec.Vector{0, viewportHeight, 0}
+    sphere1 := sphere.Sphere{vec.Vector{0, 0, -1}, 0.5}
+    sphere2 := sphere.Sphere{vec.Vector{0, -100.5, -1}, 100}
 
-    horizontalS := vec.Scale(horizontal, 0.5)
-    verticalS := vec.Scale(vertical, 0.5)
-    depthS := vec.Vector{0, 0, focalLength}
-    lowerLeftCorner := vec.Minus(origin, horizontalS, verticalS, depthS)
+    sphereList := make([]hittable.Hittable, 0)
+    sphereList = append(sphereList, sphere1)
+    sphereList = append(sphereList, sphere2)
 
-    sphereCenter := vec.Vector{0, 0, -1}
-    //colorRed := vec.Vector{1, 0, 0}
+    world := world.World{sphereList}
+
+    numOfSamples := 100
+    maxDepth := 50
+
+    randSource := rand.NewSource(time.Now().UnixNano())
+    rng := rand.New(randSource)
 
     fmt.Printf("P3\n%d %d\n255\n", w, h)
 
     for y := (h - 1); y >= 0; y = y - 1 {
+        fmt.Fprintf(os.Stderr, "starting scanline #%d\n", (h - 1) - y)
         for x := 0; x < w; x++ {
-            hU := vec.Scale(horizontal, float64(x) / float64(w - 1))
-            vV := vec.Scale(vertical, float64(y) / float64(h - 1))
-
-            dir := vec.Minus(vec.Add(lowerLeftCorner, hU, vV), origin)
-            r := ray.Ray{origin, dir}
-
-            t := hitSphere(sphereCenter, 0.5, r)
-            //fmt.Printf("!! t es %f", t)
-            if t > 0.0 {
-                normal := vec.Minus(r.At(t), vec.Vector{0, 0, -1})
-                sphereColor := vec.Add(normal, vec.Vector{1, 1, 1})
-                sphereColorHalved := vec.Scale(sphereColor, 0.5)
-                fmt.Printf(sphereColorHalved.ToColorString())
-                //fmt.Printf(colorRed.ToColorString())
-                continue
+            c := vec.Vector{0, 0, 0}
+            for sample := 0; sample < numOfSamples; sample += 1 {
+                u := (float64(x) + rng.Float64()) / float64(w - 1)
+                v := (float64(y) + rng.Float64()) / float64(h - 1)
+                r := camera.GetRay(u, v)
+                c.AddInPlace(rayColor(rng, &r, world, maxDepth))
             }
+            // fmt.Fprintf(os.Stderr, "ended color as: %v\n", c)
 
-            unit := vec.Unit(r.Dir)
-            t  = 0.5 * (unit.Y + 1.0)
-            c1 := vec.Scale(vec.Vector{1, 1, 1}, 1.0 - t)
-            c2 := vec.Scale(vec.Vector{0.5, 0.7, 1.0}, t)
-            c  := vec.Add(c1, c2)
-
-            fmt.Printf(c.ToColorString())
+            fmt.Printf("%v", c.ToColorString(numOfSamples))
         }
     }
 }
