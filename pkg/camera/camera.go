@@ -3,6 +3,9 @@ package camera
 import (
     vec "github.com/ikerlb/ray-tracer/pkg/vec"
     ray "github.com/ikerlb/ray-tracer/pkg/ray"
+    util "github.com/ikerlb/ray-tracer/pkg/util"
+
+    "math"
 )
 
 type Camera struct {
@@ -12,10 +15,14 @@ type Camera struct {
     vertical vec.Vector;
 }
 
-func Init(aspectRatio, viewportHeight, focalLength float64) Camera{
+func Init(vfov, aspectRatio float64) Camera{
+    theta := util.DegreesToRadians(vfov)
+    h := math.Tan(theta / 2)
 
+    viewportHeight := 2.0 * h
     viewportWidth := aspectRatio * viewportHeight
 
+    focalLength := 1.0
     origin := vec.Vector{0, 0, 0}
     horizontal := vec.Vector{viewportWidth, 0, 0}
     vertical := vec.Vector{0, viewportHeight, 0}

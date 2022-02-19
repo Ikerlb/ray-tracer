@@ -10,6 +10,7 @@ import (
     sphere "github.com/ikerlb/ray-tracer/cmd/sphere"
     lamb "github.com/ikerlb/ray-tracer/cmd/lambertian"
     metal "github.com/ikerlb/ray-tracer/cmd/metal"
+    dielectric "github.com/ikerlb/ray-tracer/cmd/dielectric"
 
     ray "github.com/ikerlb/ray-tracer/pkg/ray"
     vec "github.com/ikerlb/ray-tracer/pkg/vec"
@@ -47,7 +48,9 @@ func main() {
 
 
     // Camera data
-    camera := cam.Init(aspectRatio, 2.0, 1.0)
+    camera := cam.Init(90, aspectRatio)
+
+    fmt.Fprintf(os.Stderr, "%v", camera)
 
     /*ground := lamb.Lambertian{vec.Vector{0.8, 0.8, 0.0}}
     center := metal.Metal{vec.Vector{0.8, 0.8, 0.8}}
@@ -67,20 +70,23 @@ func main() {
     world.add(make_shared<sphere>(point3( 1.0,    0.0, -1.0),   0.5, material_right));*/
 
     materialGround := lamb.Lambertian{vec.Vector{0.8, 0.8, 0.0}}
-    materialCenter := lamb.Lambertian{vec.Vector{0.7, 0.3, 0.3}}
-    materialLeft := metal.Metal{vec.Vector{0.8, 0.8, 0.8}, 0.3}
-    materialRight := metal.Metal{vec.Vector{0.8, 0.6, 0.2}, 1.0}
+    materialCenter := lamb.Lambertian{vec.Vector{0.1, 0.2, 0.5}}
+    materialLeft := dielectric.Dielectric{1.5}
+    materialRight := metal.Metal{vec.Vector{0.8, 0.6, 0.2}, 0.0}
 
     sphereGround := sphere.Sphere{vec.Vector{0.0, -100.5, -1.0}, 100.0, materialGround}
     sphereCenter := sphere.Sphere{vec.Vector{0.0, 0.0, -1.0}, 0.5, materialCenter}
-    sphereLeft := sphere.Sphere{vec.Vector{-1.0, 0.0, -1.0}, 0.5, materialLeft}
+    sphereLeft1 := sphere.Sphere{vec.Vector{-1.0, 0.0, -1.0}, 0.5, materialLeft}
+    sphereLeft2 := sphere.Sphere{vec.Vector{-1.0, 0.0, -1.0}, -0.45, materialLeft}
     sphereRight := sphere.Sphere{vec.Vector{1.0, 0.0, -1.0}, 0.5, materialRight}
 
     sphereList := make([]model.Hittable, 0)
     sphereList = append(sphereList, sphereGround)
     sphereList = append(sphereList, sphereCenter)
-    sphereList = append(sphereList, sphereLeft)
+    sphereList = append(sphereList, sphereLeft1)
+    sphereList = append(sphereList, sphereLeft2)
     sphereList = append(sphereList, sphereRight)
+
 
     world := world.World{sphereList}
 

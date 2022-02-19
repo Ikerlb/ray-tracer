@@ -12,6 +12,16 @@ type HitRecord struct {
     Normal vec.Vector;
     Time float64;
     Material Material;
+    FrontFace bool;
+}
+
+func (h *HitRecord) SetFaceNormal(r *ray.Ray, outNorm vec.Vector) {
+    h.FrontFace = vec.Dot(r.Dir, outNorm) < 0
+    if h.FrontFace {
+        h.Normal = outNorm
+    } else {
+        h.Normal = vec.Scale(outNorm, -1)
+    }
 }
 
 type Hittable interface {

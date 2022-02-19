@@ -46,6 +46,8 @@ func (s Sphere) Hit(r *ray.Ray, tMin, tMax float64) (bool, *model.HitRecord){
     at := r.At(root)
     normal := vec.Div(vec.Minus(at, s.Center), s.Radius)
 
-    hr := model.HitRecord{Point: at, Normal: normal, Time: root, Material: s.Material}
+    hr := model.HitRecord{Point: at, Normal: normal, Time: root, Material: s.Material, FrontFace: false}
+    hr.SetFaceNormal(r, normal)
+
     return true, &hr
 }

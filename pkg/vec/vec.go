@@ -60,6 +60,10 @@ func Minus(vs ...Vector) Vector {
     return res */
 }
 
+func Neg(v Vector) Vector {
+    return Scale(v, -1)
+}
+
 func Dot(v, u Vector) float64 {
     return v.X * u.X + v.Y * u.Y + v.Z * u.Z
 }
@@ -127,9 +131,6 @@ func (v *Vector) NearZero() bool {
     e := 1e-8
     return (math.Abs(v.X)<e) && (math.Abs(v.Y)<e) && (math.Abs(v.Z)<e)
 }
-//vec3 reflect(const vec3& v, const vec3& n) {
-//    return v - 2*dot(v,n)*n;
-//}
 
 // n is a unit vector!
 func Reflect(v, n Vector) Vector {
@@ -157,7 +158,20 @@ func RandomUnitVector(r *rand.Rand) Vector {
     return Unit(RandomInUnitSphere(r))
 }
 
-
+/*vec3 refract(const vec3& uv, const vec3& n, double etai_over_etat) {
+    auto cos_theta = fmin(dot(-uv, n), 1.0);
+    vec3 r_out_perp =  etai_over_etat * (uv + cos_theta*n);
+    vec3 r_out_parallel = -sqrt(fabs(1.0 - r_out_perp.length_squared())) * n;
+    return r_out_perp + r_out_parallel;
+}*/
+func Refract(uv, n Vector, etaiOverEtat float64) Vector {
+    cosTheta := math.Min(Dot(Scale(uv, -1), n), 1.0)
+    s := Add(uv, Scale(n, cosTheta))
+    rOutPrep := Scale(s, etaiOverEtat)
+    sq := -math.Sqrt(math.Abs(1.0 - rOutPrep.LengthSquared()))
+    rOutParallel := Scale(n, sq)
+    return Add(rOutPrep, rOutParallel)
+}
 
 /*func (v *Vector) ToColorString() string {
     ri := int(255 * v.X)
