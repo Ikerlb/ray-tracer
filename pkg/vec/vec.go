@@ -23,8 +23,16 @@ func minus(v, u Vector) Vector {
     return Vector{v.X - u.X, v.Y - u.Y, v.Z - u.Z}
 }
 
-func Prod(v, u Vector) Vector {
+func prod(v, u Vector) Vector {
     return Vector{v.X * u.X, v.Y * u.Y, v.Z * u.Z}
+}
+
+func Prod(vs ...Vector) Vector {
+    res := Vector{1, 1, 1}
+    for _, v := range vs {
+        res = prod(res, v)
+    }
+    return res
 }
 
 func Add(vs ...Vector) Vector {
@@ -115,6 +123,21 @@ func (v *Vector) unpack() (float64, float64, float64) {
     return v.X, v.Y, v.Z
 }
 
+func (v *Vector) NearZero() bool {
+    e := 1e-8
+    return (math.Abs(v.X)<e) && (math.Abs(v.Y)<e) && (math.Abs(v.Z)<e)
+}
+//vec3 reflect(const vec3& v, const vec3& n) {
+//    return v - 2*dot(v,n)*n;
+//}
+
+// n is a unit vector!
+func Reflect(v, n Vector) Vector {
+    d := Dot(v, n)
+    c := Scale(n, 2 * d)
+    return Minus(v, c)
+}
+
 func Random(r *rand.Rand, mn, mx float64) Vector {
     x := util.RandomRange(r, mn, mx)
     y := util.RandomRange(r, mn, mx)
@@ -133,6 +156,8 @@ func RandomInUnitSphere(r *rand.Rand) Vector {
 func RandomUnitVector(r *rand.Rand) Vector {
     return Unit(RandomInUnitSphere(r))
 }
+
+
 
 /*func (v *Vector) ToColorString() string {
     ri := int(255 * v.X)

@@ -3,7 +3,7 @@ package sphere
 import (
     vec "github.com/ikerlb/ray-tracer/pkg/vec"
     ray "github.com/ikerlb/ray-tracer/pkg/ray"
-    h "github.com/ikerlb/ray-tracer/pkg/hittable"
+    model "github.com/ikerlb/ray-tracer/pkg/model"
 
     "math"
 )
@@ -11,6 +11,7 @@ import (
 type Sphere struct {
     Center vec.Vector;
     Radius float64;
+    Material model.Material;
 }
 
 /*type HitRecord struct {
@@ -23,7 +24,7 @@ type Hittable interface {
     hit(r *ray.Ray, tMin, tMax float64) (bool, HitRecord);
 }*/
 
-func (s Sphere) Hit(r *ray.Ray, tMin, tMax float64) (bool, *h.HitRecord){
+func (s Sphere) Hit(r *ray.Ray, tMin, tMax float64) (bool, *model.HitRecord){
     oc := vec.Minus(r.Origin, s.Center)
     a := r.Dir.LengthSquared()
     halfB := vec.Dot(oc, r.Dir)
@@ -45,6 +46,6 @@ func (s Sphere) Hit(r *ray.Ray, tMin, tMax float64) (bool, *h.HitRecord){
     at := r.At(root)
     normal := vec.Div(vec.Minus(at, s.Center), s.Radius)
 
-    hr := h.HitRecord{Point: at, Normal: normal, Time: root}
+    hr := model.HitRecord{Point: at, Normal: normal, Time: root, Material: s.Material}
     return true, &hr
 }

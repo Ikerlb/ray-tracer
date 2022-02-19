@@ -2,15 +2,15 @@ package world
 
 import (
     ray "github.com/ikerlb/ray-tracer/pkg/ray"
-    h "github.com/ikerlb/ray-tracer/pkg/hittable"
+    m "github.com/ikerlb/ray-tracer/pkg/model"
 )
 
 type World struct {
-   List []h.Hittable
+   List []m.Hittable
 }
 
-func (w World) Hit(r *ray.Ray, tMin, tMax float64) (bool, *h.HitRecord) {
-	var res *h.HitRecord
+func (w World) Hit(r *ray.Ray, tMin, tMax float64) (bool, *m.HitRecord) {
+	var res *m.HitRecord
 	anyHit := false
 
 	closest := tMax
