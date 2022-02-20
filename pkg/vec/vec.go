@@ -68,11 +68,16 @@ func Dot(v, u Vector) float64 {
     return v.X * u.X + v.Y * u.Y + v.Z * u.Z
 }
 
-func Cross(v, u Vector) Vector {
-    x := v.Y * u.Z - v.Z * u.Y
-    y := v.Z * u.X - v.X * u.Z
-    z := v.X * u.Y - v.Y * u.X
-    return Vector{x, y, z}
+
+/*vec3 cross(const vec3 &u, const vec3 &v) {
+    return vec3(u.e[1] * v.e[2] - u.e[2] * v.e[1],
+                u.e[2] * v.e[0] - u.e[0] * v.e[2],
+                u.e[0] * v.e[1] - u.e[1] * v.e[0]);*/
+func Cross(u,v Vector) Vector {
+    x := (u.Y * v.Z) - (u.Z * v.Y)
+    y := (u.Z * v.X) - (u.X * v.Z)
+    z := (u.X * v.Y) - (u.Y * v.X)
+	return Vector{x, y, z}
 }
 
 func Scale(v Vector, s float64) Vector {
@@ -153,6 +158,26 @@ func RandomInUnitSphere(r *rand.Rand) Vector {
     }
     return v
 }
+
+/*vec3 random_in_unit_disk() {
+    while (true) {
+        auto p = vec3(random_double(-1,1), random_double(-1,1), 0);
+        if (p.length_squared() >= 1) continue;
+        return p;
+    }
+}*/
+func RandomInUnitDisk(r *rand.Rand) Vector {
+    x := util.RandomRange(r, -1.0, 1.0)
+    y := util.RandomRange(r, -1.0, 1.0)
+    v := Vector{x, y, 0}
+    for v.LengthSquared() >= 1 {
+        x = util.RandomRange(r, -1.0, 1.0)
+        y = util.RandomRange(r, -1.0, 1.0)
+        v = Vector{x, y, 0}
+    }
+    return v
+}
+
 
 func RandomUnitVector(r *rand.Rand) Vector {
     return Unit(RandomInUnitSphere(r))
