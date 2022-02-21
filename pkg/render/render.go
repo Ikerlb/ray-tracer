@@ -1,4 +1,4 @@
-package main
+package render
 
 import (
     "fmt"
@@ -6,12 +6,14 @@ import (
     "math/rand"
     "time"
     "os"
-    "github.com/pkg/profile"
+    "io"
+    //"github.com/pkg/profile"
 
-    sphere "github.com/ikerlb/ray-tracer/cmd/sphere"
-    lamb "github.com/ikerlb/ray-tracer/cmd/lambertian"
-    metal "github.com/ikerlb/ray-tracer/cmd/metal"
-    dielectric "github.com/ikerlb/ray-tracer/cmd/dielectric"
+    sphere "github.com/ikerlb/ray-tracer/pkg/objects/sphere"
+
+    lamb "github.com/ikerlb/ray-tracer/pkg/materials/lambertian"
+    metal "github.com/ikerlb/ray-tracer/pkg/materials/metal"
+    dielectric "github.com/ikerlb/ray-tracer/pkg/materials/dielectric"
 
     ray "github.com/ikerlb/ray-tracer/pkg/ray"
     util "github.com/ikerlb/ray-tracer/pkg/util"
@@ -20,6 +22,16 @@ import (
     world "github.com/ikerlb/ray-tracer/pkg/world"
     cam "github.com/ikerlb/ray-tracer/pkg/camera"
 )
+
+type renderOptions struct {
+    width int;
+    height int;
+    samples int;
+    maxDepth int;
+    pixels []int;
+    cam cam.Camera;
+    world world.World;
+}
 
 func randomScene(rng *rand.Rand) world.World {
 
@@ -42,7 +54,6 @@ func randomScene(rng *rand.Rand) world.World {
             if minus.Length() > 0.9 {
 
                 if chooseMat < 0.9 {
-                    fmt.Fprintf(os.Stderr, "%f: Diffuse! \n", chooseMat)
                     // Diffuse
                     albedo :=  vec.Random(rng, 0, 1.0)
                     sphereMat := lamb.Lambertian{albedo}
@@ -50,14 +61,12 @@ func randomScene(rng *rand.Rand) world.World {
                     sphereList = append(sphereList, sph)
                 } else if chooseMat < 0.95 {
                     // metal
-                    fmt.Fprintf(os.Stderr, "%f: Metal! \n", chooseMat)
                     albedo := vec.Random(rng, 0, 1.0)
                     fuzz := util.RandomRange(rng, 0.5, 1)
                     sphereMat := metal.Metal{albedo, fuzz}
                     sph := sphere.Sphere{center, 0.2, sphereMat}
                     sphereList = append(sphereList, sph)
                 } else {
-                    fmt.Fprintf(os.Stderr, "%f: Dielectric! \n", chooseMat)
                     sphereMat := dielectric.Dielectric{1.5}
                     sph := sphere.Sphere{center, 0.2, sphereMat}
                     sphereList = append(sphereList, sph)
@@ -103,13 +112,33 @@ func rayColor(rng *rand.Rand, r *ray.Ray, h model.Hittable, depth int) vec.Vecto
     return vec.Add(c1, c2)
 }
 
-func main() {
-    defer profile.Start(profile.ProfilePath("/tmp")).Stop()
+func render(rng *rand.Rand, scanline int, rO renderOptions) {
+    for x := 0; x < rO.width; x++ {
+        c := vec.Vector{0, 0, 0}
+        for sample := 0; sample < rO.samples; sample += 1 {
+            u := (float64(x) + rng.Float64()) / float64(rO.width - 1)
+            v := (float64(scanline) + rng.Float64()) / float64(rO.height - 1)
+            r := rO.cam.GetRay(rng, u, v)
+            c.AddInPlace(rayColor(rng, &r, rO.world, rO.maxDepth))
+        }
+        i := rO.width * scanline + x
+        rO.pixels[i] = c.PackToInt(rO.samples)
+    }
+}
+
+func worker(id int, rng *rand.Rand, jobs <-chan int, results chan<- int, rO renderOptions) {
+    for y := range jobs {
+        render(rng, y, rO)
+        results <- y
+    }
+}
+
+func Render(cpus int, target io.Writer) {
+    //defer profile.Start(profile.ProfilePath("/tmp")).Stop()
     // Image data
     w := 200
     aspectRatio := 3.0 / 2.0
-    h := int64(float64(w) / aspectRatio)
-
+    h := int(float64(w) / aspectRatio)
 
     lookFrom := vec.Vector{13, 2, 3}
     lookAt := vec.Vector{0, 0, 0}
@@ -121,24 +150,31 @@ func main() {
     numOfSamples := 100
     maxDepth := 50
 
-    randSource := rand.NewSource(time.Now().UnixNano())
-    rng := rand.New(randSource)
 
-    world := randomScene(rng)
+    pixels := make([]int, w * h, w * h)
 
-    fmt.Printf("P3\n%d %d\n255\n", w, h)
+    randSourceScene := rand.NewSource(time.Now().UnixNano() + int64(cpus))
+    rngScene := rand.New(randSourceScene)
+    world := randomScene(rngScene)
 
-    for y := (h - 1); y >= 0; y = y - 1 {
-        fmt.Fprintf(os.Stderr, "starting scanline #%d\n", (h - 1) - y)
-        for x := 0; x < w; x++ {
-            c := vec.Vector{0, 0, 0}
-            for sample := 0; sample < numOfSamples; sample += 1 {
-                u := (float64(x) + rng.Float64()) / float64(w - 1)
-                v := (float64(y) + rng.Float64()) / float64(h - 1)
-                r := camera.GetRay(rng, u, v)
-                c.AddInPlace(rayColor(rng, &r, world, maxDepth))
-            }
-            fmt.Printf("%v", c.ToColorString(numOfSamples))
-        }
+    rO := renderOptions{w, h, numOfSamples, maxDepth, pixels, camera, world}
+
+    jobs := make(chan int, h)
+    results := make(chan int, h)
+
+    for i := 0; i < cpus; i += 1 {
+        randSource := rand.NewSource(time.Now().UnixNano() + int64(i))
+        rng := rand.New(randSource)
+        go worker(i, rng, jobs, results, rO)
     }
+
+    for y := 0; y < h; y += 1 {
+        jobs <- y
+    }
+    close(jobs)
+
+    for y := 0; y < h; y += 1 {
+        fmt.Fprintf(os.Stderr, "finished line %d \n", <-results)
+    }
+    util.EncodeToPpm(pixels, w, h, target)
 }

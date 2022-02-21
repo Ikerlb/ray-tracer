@@ -51,7 +51,7 @@ func Init(lookFrom, lookAt, vUp vec.Vector,  vfov, aspectRatio, aperture, focusD
 }
 
 
-func (c Camera) GetRay(rng *rand.Rand, u, v float64) ray.Ray {
+func (c *Camera) GetRay(rng *rand.Rand, u, v float64) ray.Ray {
     rd := vec.Scale(vec.RandomInUnitDisk(rng), c.lensRadius)
     offset := vec.Add(vec.Scale(c.u, rd.X), vec.Scale(c.v, rd.Y))
 

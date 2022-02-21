@@ -44,20 +44,11 @@ func Add(vs ...Vector) Vector {
 }
 
 func Minus(vs ...Vector) Vector {
-    if len(vs) == 0 {
-        return Vector{0, 0, 0}
-    } else {
-        res := vs[0]
-        for i := 1; i < len(vs); i += 1 {
-           res = minus(res, vs[i])
-        }
-        return res
+    res := vs[0]
+    for i := 1; i < len(vs); i += 1 {
+       res = minus(res, vs[i])
     }
-    /*res := Vector{0, 0, 0}
-    for _, v := range vs {
-        res = minus(res, v)
-    }
-    return res */
+    return res
 }
 
 func Neg(v Vector) Vector {
@@ -113,19 +104,25 @@ func (v *Vector) Length() float64{
 }
 
 func (v Vector) ToColorString(numOfSamples int) string {
+    r, g, b := v.unpackColor(numOfSamples)
+    return fmt.Sprintf("%d %d %d\n", r, g, b)
+}
 
-    scale := 1.0 / float64(numOfSamples)
+func (v *Vector) PackToInt(samples int) int {
+    r, g, b := v.unpackColor(samples)
+    return r << 16 | g << 8 | b
+}
 
-    r, g, b := v.unpack()
-    r = math.Sqrt(r * scale)
-    g = math.Sqrt(g * scale)
-    b = math.Sqrt(b * scale)
+// unpacks gamma corrected color
+func (v *Vector) unpackColor(samples int) (int, int, int){
+    r, b, g := v.unpack()
+    s := 1.0 / float64(samples)
 
-    rs := int(256 * util.Clamp(r, 0.0, 0.999))
-    gs := int(256 * util.Clamp(g, 0.0, 0.999))
-    bs := int(256 * util.Clamp(b, 0.0, 0.999))
+    ri := int(256 * util.Clamp(math.Sqrt(r * s), 0.0, 0.999))
+    gi := int(256 * util.Clamp(math.Sqrt(g * s), 0.0, 0.999))
+    bi := int(256 * util.Clamp(math.Sqrt(b * s), 0.0, 0.999))
 
-    return fmt.Sprintf("%d %d %d\n", rs, gs, bs)
+    return ri, gi, bi
 }
 
 func (v *Vector) unpack() (float64, float64, float64) {
@@ -183,12 +180,6 @@ func RandomUnitVector(r *rand.Rand) Vector {
     return Unit(RandomInUnitSphere(r))
 }
 
-/*vec3 refract(const vec3& uv, const vec3& n, double etai_over_etat) {
-    auto cos_theta = fmin(dot(-uv, n), 1.0);
-    vec3 r_out_perp =  etai_over_etat * (uv + cos_theta*n);
-    vec3 r_out_parallel = -sqrt(fabs(1.0 - r_out_perp.length_squared())) * n;
-    return r_out_perp + r_out_parallel;
-}*/
 func Refract(uv, n Vector, etaiOverEtat float64) Vector {
     cosTheta := math.Min(Dot(Scale(uv, -1), n), 1.0)
     s := Add(uv, Scale(n, cosTheta))
@@ -197,11 +188,3 @@ func Refract(uv, n Vector, etaiOverEtat float64) Vector {
     rOutParallel := Scale(n, sq)
     return Add(rOutPrep, rOutParallel)
 }
-
-/*func (v *Vector) ToColorString() string {
-    ri := int(255 * v.X)
-    gi := int(255 * v.Y)
-    bi := int(255 * v.Z)
-
-    return fmt.Sprintf("%d %d %d\n", ri, gi, bi)
-}*/
