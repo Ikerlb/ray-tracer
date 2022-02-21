@@ -4,16 +4,7 @@ import (
     "fmt"
     "math"
     "math/rand"
-    "time"
-    "os"
     "io"
-    //"github.com/pkg/profile"
-
-    sphere "github.com/ikerlb/ray-tracer/pkg/objects/sphere"
-
-    lamb "github.com/ikerlb/ray-tracer/pkg/materials/lambertian"
-    metal "github.com/ikerlb/ray-tracer/pkg/materials/metal"
-    dielectric "github.com/ikerlb/ray-tracer/pkg/materials/dielectric"
 
     ray "github.com/ikerlb/ray-tracer/pkg/ray"
     util "github.com/ikerlb/ray-tracer/pkg/util"
@@ -23,7 +14,18 @@ import (
     cam "github.com/ikerlb/ray-tracer/pkg/camera"
 )
 
-type renderOptions struct {
+type RayTracerConfig struct {
+    Target io.Writer;
+    World world.World;
+    MaxDepth int;
+    Samples int;
+    Width int;
+    Height int;
+    Workers int;
+    Rng *rand.Rand;
+}
+
+type renderParams struct {
     width int;
     height int;
     samples int;
@@ -33,63 +35,7 @@ type renderOptions struct {
     world world.World;
 }
 
-func randomScene(rng *rand.Rand) world.World {
 
-    sphereList := make([]model.Hittable, 0)
-
-    groundMat := lamb.Lambertian{vec.Vector{0.5, 0.5, 0.5}}
-    groundSphere := sphere.Sphere{vec.Vector{0, -1000, 0}, 1000, groundMat}
-
-    sphereList = append(sphereList, groundSphere)
-
-    for a := -11; a < 11; a += 1 {
-        for b := -11; b < 11; b += 1 {
-            chooseMat := rand.Float64()
-            x := float64(a) + 0.9 * rand.Float64()
-            y := 0.2
-            z := float64(b) + 0.9 * rand.Float64()
-            center := vec.Vector{x, y, z}
-
-            minus := vec.Minus(center, vec.Vector{4, 0.2, 0})
-            if minus.Length() > 0.9 {
-
-                if chooseMat < 0.9 {
-                    // Diffuse
-                    albedo :=  vec.Random(rng, 0, 1.0)
-                    sphereMat := lamb.Lambertian{albedo}
-                    sph := sphere.Sphere{center, 0.2, sphereMat}
-                    sphereList = append(sphereList, sph)
-                } else if chooseMat < 0.95 {
-                    // metal
-                    albedo := vec.Random(rng, 0, 1.0)
-                    fuzz := util.RandomRange(rng, 0.5, 1)
-                    sphereMat := metal.Metal{albedo, fuzz}
-                    sph := sphere.Sphere{center, 0.2, sphereMat}
-                    sphereList = append(sphereList, sph)
-                } else {
-                    sphereMat := dielectric.Dielectric{1.5}
-                    sph := sphere.Sphere{center, 0.2, sphereMat}
-                    sphereList = append(sphereList, sph)
-                }
-            }
-        }
-    }
-
-    material1 := dielectric.Dielectric{1.5}
-    sphere1 := sphere.Sphere{vec.Vector{0, 1, 0}, 1.0, material1}
-
-    material2 := lamb.Lambertian{vec.Vector{0.4, 0.2, 0.1}}
-    sphere2 := sphere.Sphere{vec.Vector{-4, 1, 0}, 1.0, material2}
-
-    material3 := metal.Metal{vec.Vector{0.7, 0.6, 0.5}, 0.0}
-    sphere3 := sphere.Sphere{vec.Vector{4, 1, 0}, 1.0, material3}
-
-    sphereList = append(sphereList, sphere1)
-    sphereList = append(sphereList, sphere2)
-    sphereList = append(sphereList, sphere3)
-
-    return world.World{sphereList}
-}
 
 func rayColor(rng *rand.Rand, r *ray.Ray, h model.Hittable, depth int) vec.Vector {
     if depth <= 0 {
@@ -112,33 +58,41 @@ func rayColor(rng *rand.Rand, r *ray.Ray, h model.Hittable, depth int) vec.Vecto
     return vec.Add(c1, c2)
 }
 
-func render(rng *rand.Rand, scanline int, rO renderOptions) {
-    for x := 0; x < rO.width; x++ {
+func render(rng *rand.Rand, scanline int, rP renderParams) {
+    for x := 0; x < rP.width; x++ {
         c := vec.Vector{0, 0, 0}
-        for sample := 0; sample < rO.samples; sample += 1 {
-            u := (float64(x) + rng.Float64()) / float64(rO.width - 1)
-            v := (float64(scanline) + rng.Float64()) / float64(rO.height - 1)
-            r := rO.cam.GetRay(rng, u, v)
-            c.AddInPlace(rayColor(rng, &r, rO.world, rO.maxDepth))
+        for sample := 0; sample < rP.samples; sample += 1 {
+            u := (float64(x) + rng.Float64()) / float64(rP.width - 1)
+            v := (float64(scanline) + rng.Float64()) / float64(rP.height - 1)
+            r := rP.cam.GetRay(rng, u, v)
+            c.AddInPlace(rayColor(rng, &r, rP.world, rP.maxDepth))
         }
-        i := rO.width * scanline + x
-        rO.pixels[i] = c.PackToInt(rO.samples)
+        i := rP.width * scanline + x
+        rP.pixels[i] = c.PackToInt(rP.samples)
     }
 }
 
-func worker(id int, rng *rand.Rand, jobs <-chan int, results chan<- int, rO renderOptions) {
+func worker(id int, rng *rand.Rand, jobs <-chan int, results chan<- int, rP renderParams) {
     for y := range jobs {
-        render(rng, y, rO)
+        render(rng, y, rP)
         results <- y
     }
 }
 
-func Render(cpus int, target io.Writer) {
-    //defer profile.Start(profile.ProfilePath("/tmp")).Stop()
+/*
+type renderParams struct {
+    width int;
+    height int;
+    samples int;
+    maxDepth int;
+    pixels []int;
+    cam cam.Camera;
+    world world.World;
+}
+*/
+func Render(rtConfig RayTracerConfig) {
     // Image data
-    w := 200
-    aspectRatio := 3.0 / 2.0
-    h := int(float64(w) / aspectRatio)
+    aspectRatio := float64(rtConfig.Width) / float64(rtConfig.Height)
 
     lookFrom := vec.Vector{13, 2, 3}
     lookAt := vec.Vector{0, 0, 0}
@@ -147,34 +101,36 @@ func Render(cpus int, target io.Writer) {
     distToFocus := 10.0
     camera := cam.Init(lookFrom, lookAt, vUp, 20, aspectRatio, aperture, distToFocus)
 
-    numOfSamples := 100
-    maxDepth := 50
+    totalPixels := rtConfig.Width * rtConfig.Width
 
+    pixels := make([]int, totalPixels, totalPixels)
 
-    pixels := make([]int, w * h, w * h)
-
-    randSourceScene := rand.NewSource(time.Now().UnixNano() + int64(cpus))
-    rngScene := rand.New(randSourceScene)
-    world := randomScene(rngScene)
-
-    rO := renderOptions{w, h, numOfSamples, maxDepth, pixels, camera, world}
-
-    jobs := make(chan int, h)
-    results := make(chan int, h)
-
-    for i := 0; i < cpus; i += 1 {
-        randSource := rand.NewSource(time.Now().UnixNano() + int64(i))
-        rng := rand.New(randSource)
-        go worker(i, rng, jobs, results, rO)
+    rP := renderParams{
+        width: rtConfig.Width,
+        height: rtConfig.Height,
+        samples: rtConfig.Samples,
+        maxDepth: rtConfig.MaxDepth,
+        pixels: pixels,
+        cam: camera,
+        world: rtConfig.World,
     }
 
-    for y := 0; y < h; y += 1 {
+    jobs := make(chan int, rtConfig.Height)
+    results := make(chan int, rtConfig.Height)
+
+    for i := 0; i < rtConfig.Workers; i += 1 {
+        source := rand.NewSource(rtConfig.Rng.Int63())
+        rng := rand.New(source)
+        go worker(i, rng, jobs, results, rP)
+    }
+
+    for y := 0; y < rtConfig.Height; y += 1 {
         jobs <- y
     }
     close(jobs)
 
-    for y := 0; y < h; y += 1 {
-        fmt.Fprintf(os.Stderr, "finished line %d \n", <-results)
+    for y := 0; y < rtConfig.Height; y += 1 {
+        fmt.Printf("finished line %d \n", <-results)
     }
-    util.EncodeToPpm(pixels, w, h, target)
+    util.EncodeToPpm(pixels, rtConfig.Width, rtConfig.Height, rtConfig.Target)
 }
